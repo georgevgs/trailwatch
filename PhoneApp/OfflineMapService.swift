@@ -2,9 +2,8 @@ import Foundation
 import Observation
 import TrailKit
 
-/// Downloads the OpenStreetMap data and contour lines around a route and saves them with the route,
-/// so the Watch can draw a map with no signal. Routes already on the Watch are sent again with their
-/// new map.
+/// Downloads OSM data and contours around a route for the Watch's offline map.
+/// Routes already on the Watch are resent with it.
 @Observable
 final class OfflineMapService {
     /// Metres around the route that the map covers.
@@ -29,7 +28,7 @@ final class OfflineMapService {
         failed.remove(route.id)
         defer { downloading.remove(route.id) }
 
-        // Elevation tiles come from a different server, alongside the map data.
+        // Elevation tiles come from another server; fetch them in parallel.
         async let relief = Self.relief(around: bounds)
         do {
             var request = URLRequest(url: Overpass.endpoint, timeoutInterval: 120)
@@ -48,7 +47,7 @@ final class OfflineMapService {
                 map.shading = relief.shading
             }
 
-            // Save onto the current copy, in case the route changed meanwhile; skip if it was deleted.
+            // Save onto the current copy in case it changed; skip if deleted.
             guard var latest = library.route(id: route.id) else { return }
             latest.map = map
             try library.save(latest)
@@ -60,8 +59,7 @@ final class OfflineMapService {
         }
     }
 
-    /// Contour lines and hill shading from Terrain Tiles, or nil if they couldn't be fetched: the map
-    /// still works without.
+    /// Contours and hill shading, or nil if the download fails. The map works without.
     @concurrent private static func relief(around bounds: BoundingBox) async -> Terrain.Relief? {
         do {
             let tiles = try await withThrowingTaskGroup(of: (TileID, Data).self) { group in

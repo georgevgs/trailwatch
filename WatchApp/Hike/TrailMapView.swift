@@ -1,8 +1,7 @@
 import SwiftUI
 import TrailKit
 
-/// The route over OpenStreetMap paths, tracks, roads, water and woods, drawn from the data that came
-/// with it, so it works with no signal. The Digital Crown zooms and dragging pans.
+/// The route over the offline OSM map. Crown zooms, drag pans.
 struct TrailMapView: View {
     let session: HikeSession
     let layers: TrailMapLayers
@@ -26,9 +25,8 @@ struct TrailMapView: View {
         let you = youPoint
         let accuracy = session.location?.horizontalAccuracy ?? 0
         let focus = focusPoint
-        // Wrist down (Always On) or in Low Power Mode, draw only what you navigate by: less work per
-        // frame and no large lit areas, as Apple's Always On guidance asks. The map redraws with every
-        // GPS fix, so reading Low Power Mode here keeps up with it.
+        // Always On or Low Power Mode: draw only what you navigate by (Apple's Always On guidance).
+        // Reading Low Power Mode here is fine: the map redraws on every fix.
         let isSimple = isLuminanceReduced || ProcessInfo.processInfo.isLowPowerModeEnabled
         let showsLabels = zoom >= 2 && !isSimple
 

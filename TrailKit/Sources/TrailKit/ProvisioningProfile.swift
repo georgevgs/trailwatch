@@ -1,6 +1,6 @@
 import Foundation
 
-/// The provisioning profile inside the app, which says when a development install stops opening.
+/// Reads when a development install stops opening.
 public enum ProvisioningProfile {
     /// When this install stops opening; nil for App Store and TestFlight builds, which carry no profile.
     public static let appExpirationDate: Date? = {

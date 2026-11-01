@@ -61,9 +61,8 @@ public struct ElevationProfile: Sendable {
         return (0..<count - 1).map { samples[Int(Double($0) * step)] } + [last]
     }
 
-    /// Seconds to walk from `start` to `end` metres along the route at the pace of Tobler's hiking
-    /// function: about 5 km/h on the flat, fastest on a gentle descent, slower uphill and on steep
-    /// descents. Slopes are taken over 50 m stretches, so elevation noise doesn't slow the estimate.
+    /// Seconds from `start` to `end` metres at Tobler's pace. Slopes are taken over 50 m
+    /// so elevation noise doesn't slow the estimate.
     public func walkingTime(from start: Double, to end: Double) -> TimeInterval {
         var time = 0.0
         var distance = max(0, start)
@@ -93,8 +92,7 @@ public struct ElevationProfile: Sendable {
     }
 }
 
-/// Time left to the finish: Tobler's walking times along the rest of the route, scaled to the pace
-/// you've actually kept once there's enough of it to go on (a kilometre and ten minutes on the route).
+/// Time to finish: Tobler's estimate, scaled to your own pace after 1 km and 10 min on the route.
 public struct FinishEstimate: Sendable {
     public let profile: ElevationProfile
     private var joined: (along: Double, elapsed: TimeInterval)?

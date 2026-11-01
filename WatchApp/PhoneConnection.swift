@@ -2,8 +2,7 @@ import Foundation
 import TrailKit
 import WatchConnectivity
 
-/// Receives routes from the iPhone app and tells it which routes this Watch has. Received routes
-/// are saved here, so hiking never needs the iPhone.
+/// Receives routes from the iPhone and reports which ones this Watch has.
 final class PhoneConnection: NSObject {
     private let library: RouteLibrary
     private let session = WCSession.default

@@ -2,8 +2,7 @@ import SwiftUI
 import TrailKit
 import WidgetKit
 
-/// Puts TrailWatch on watch faces and in the Smart Stack: one tap from a hike, and the hike's
-/// progress while one is running.
+/// Watch-face complication and Smart Stack widget: a launcher, or the running hike's progress.
 @main
 struct TrailWatchWidget: Widget {
     var body: some WidgetConfiguration {
@@ -22,8 +21,7 @@ nonisolated struct HikeEntry: TimelineEntry {
     let hike: HikeGlance?
 }
 
-/// The Watch app reloads this as the hike goes. If it stops (the app quit), the complication goes
-/// back to a launcher after half an hour rather than showing old progress.
+/// Reloaded by the Watch app during a hike. If that stops, falls back to a launcher after 30 min.
 nonisolated struct HikeProvider: TimelineProvider {
     func placeholder(in context: Context) -> HikeEntry {
         HikeEntry(date: .now, hike: nil)

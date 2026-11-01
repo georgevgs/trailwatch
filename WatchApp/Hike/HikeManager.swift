@@ -2,8 +2,7 @@ import Foundation
 import Observation
 import TrailKit
 
-/// The hike in progress. Owned by the app rather than a screen, so no navigation can leave a
-/// workout running without its hike, and a hike carries on if the app is relaunched mid-hike.
+/// The hike in progress. Owned by the app, not a screen, so a workout can't outlive its hike.
 @Observable
 final class HikeManager {
     private(set) var current: HikeSession?

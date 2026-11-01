@@ -1,7 +1,6 @@
 import Foundation
 
-/// What a hike needs to carry on if the app quits mid-hike. Saved as the hike goes and cleared when
-/// it ends; the workout itself comes back from HealthKit.
+/// What a hike needs to resume after the app quits. The workout itself comes back from HealthKit.
 nonisolated struct HikeProgress: Codable, Equatable {
     let routeID: UUID
     /// Walking the route from its finish to its start.

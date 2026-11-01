@@ -3,8 +3,7 @@ import Observation
 import TrailKit
 import WatchConnectivity
 
-/// Sends routes to the Watch app and keeps track of which ones it has. The system queues each
-/// transfer and finishes it in the background, even if this app quits or the Watch is away for a while.
+/// Sends routes to the Watch and tracks which ones it has. Transfers finish in the background.
 @Observable
 final class WatchTransferService: NSObject {
     /// A paired Apple Watch with TrailWatch installed.

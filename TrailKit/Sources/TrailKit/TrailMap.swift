@@ -1,9 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// OpenStreetMap data around a route: paths, roads, water, woods and hiking landmarks. Downloaded on
-/// the iPhone with the route and drawn on the Watch, so the map works with no signal.
-/// Map data © OpenStreetMap contributors (ODbL).
+/// OpenStreetMap data around a route, downloaded on the iPhone and drawn on the Watch.
+/// © OpenStreetMap contributors (ODbL).
 public struct TrailMap: Codable, Sendable, Equatable {
     public enum Kind: String, Codable, Sendable {
         // Lines
@@ -96,8 +95,7 @@ public struct BoundingBox: Codable, Sendable, Equatable {
     }
 }
 
-/// Flat metres around an origin, laid out like a screen: east is +x, south is +y. Accurate to well
-/// under 1% across the few kilometres around a route.
+/// Flat metres around an origin, screen-style: +x east, +y south. Under 1% error over a few km.
 public struct MapProjection: Sendable {
     public let origin: RoutePoint
     private let metresPerDegree = RouteCalculator.earthRadius * .pi / 180

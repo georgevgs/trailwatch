@@ -2,7 +2,7 @@ import ImageIO
 import SwiftUI
 import TrailKit
 
-/// A route's map data turned into shapes once, in flat metres, so each frame only moves and scales them.
+/// Map data turned into shapes once, in flat metres, so each frame only moves and scales them.
 struct TrailMapLayers {
     struct Place {
         let kind: TrailMap.Kind

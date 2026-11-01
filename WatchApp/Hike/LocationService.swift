@@ -17,8 +17,8 @@ final class LocationService {
     func track(_ handle: (CLLocation) -> Void) async {
         // Asks for When In Use permission the first time.
         let session = CLServiceSession(authorization: .whenInUse)
-        // Keeps updates coming when the watch shows another app or the clock. Only activates once
-        // permission is granted, so it's started on the first fix.
+        // Keeps updates coming in the background. Only works once permission is granted,
+        // so it starts on the first fix.
         var background: CLBackgroundActivitySession?
         defer {
             background?.invalidate()

@@ -4,8 +4,7 @@ public enum RouteCalculator {
     /// Mean Earth radius (IUGG), in metres.
     static let earthRadius = 6_371_008.8
 
-    /// Great-circle (haversine) distance in metres. Within 0.5% of the ellipsoid, which is far
-    /// below GPS error at hiking scale.
+    /// Haversine distance in metres. Within 0.5% of the ellipsoid, well below GPS error.
     public static func distance(from a: RoutePoint, to b: RoutePoint) -> Double {
         let lat1 = radians(a.latitude)
         let lat2 = radians(b.latitude)
@@ -52,9 +51,7 @@ public enum RouteCalculator {
     }
 }
 
-/// Adds up climbing from a series of elevations. A change only counts once it moves `threshold`
-/// metres away from the last counted level, so GPS and elevation-model jitter doesn't add up into
-/// fake climbing.
+/// Counts climb, ignoring changes under `threshold` metres so elevation jitter doesn't add up.
 public struct ClimbCounter: Sendable {
     public let threshold: Double
     public private(set) var gain = 0.0

@@ -19,8 +19,7 @@ struct RouteThumbnail: View {
         .accessibilityHidden(true)
     }
 
-    /// Projects the points flat (longitude shrinks by cos(latitude), which holds at route scale)
-    /// and scales them to fit `rect` without stretching.
+    /// Projects points flat (longitude × cos(latitude)) and fits them in `rect` without stretching.
     private static func fit(_ points: [RoutePoint], in rect: CGRect) -> [CGPoint] {
         guard let first = points.first else { return [] }
         let xScale = cos(first.latitude * .pi / 180)

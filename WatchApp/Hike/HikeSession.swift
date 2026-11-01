@@ -190,9 +190,8 @@ final class HikeSession {
         }
     }
 
-    /// Shares the hike with the watch-face complication and redraws it when something visible changed.
-    /// Reloads while a workout runs don't count against WidgetKit's budget (Apple DTS), but each one
-    /// still costs battery.
+    /// Updates the complication when something visible changed. Reloads during a workout skip
+    /// WidgetKit's budget but still cost battery.
     private func updateComplication() {
         let glance = isFinished ? nil : HikeGlance(
             routeName: route.name, progress: progress, distanceRemaining: tracker.distanceRemaining,

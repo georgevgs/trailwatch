@@ -1,9 +1,8 @@
 import Foundation
 
 public enum Sun {
-    /// When the sun sets on `day` (a calendar day in `calendar`'s time zone) at a place, from NOAA's
-    /// solar equations; within a minute or two of published times outside the polar regions. Nil when
-    /// the sun doesn't set or doesn't rise that day.
+    /// Sunset on `day` at a place, from NOAA's solar equations (within a minute or two outside
+    /// polar regions). Nil when the sun doesn't set or rise.
     public static func sunset(on day: Date, latitude: Double, longitude: Double, calendar: Calendar = .current) -> Date? {
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = .gmt

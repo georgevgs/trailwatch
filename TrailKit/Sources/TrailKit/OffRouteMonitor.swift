@@ -1,11 +1,10 @@
 import Foundation
 
-/// Decides when you've left the route, without crying wolf over GPS wander.
+/// Decides when you've left the route, ignoring GPS wander.
 ///
-/// You're off route once every usable fix for `confirmation` seconds is more than `threshold` metres
-/// from it, and back on once within 60% of the threshold. Fixes less accurate than the threshold
-/// are too vague to judge and are skipped. It only starts watching after you've first been on the
-/// route, so walking from the car park to the trailhead doesn't alert.
+/// Off route after `confirmation` seconds of fixes beyond `threshold`; back on within 60% of it.
+/// Fixes less accurate than the threshold are skipped. Silent until you first reach the route,
+/// so the walk to the trailhead doesn't alert.
 public struct OffRouteMonitor: Sendable {
     public enum Change: Sendable {
         case left, rejoined

@@ -2,11 +2,11 @@ import CoreLocation
 import HealthKit
 import Observation
 
-/// Records the hike as an outdoor hiking workout in Apple Health, with its GPS route. A running
-/// workout also keeps TrailWatch going with the wrist down and brings it back when you raise it.
+/// Records the hike as an outdoor hiking workout with its route. The running workout keeps
+/// the app alive with the wrist down.
 ///
-/// Follows HealthKit's order: start the session's activity and the builder's collection; to end,
-/// stop the activity, wait for `.stopped`, end collection, finish the workout, then end the session.
+/// HealthKit's order: start the activity, then collection. To end: stop the activity, wait for
+/// `.stopped`, end collection, finish the workout, end the session.
 @Observable
 final class WorkoutRecorder: NSObject {
     enum State {
@@ -151,8 +151,7 @@ final class WorkoutRecorder: NSObject {
         }
     }
 
-    /// Saves how hard the hike felt, from 1 to 10, as Apple's Workout app asks after a workout. Fitness
-    /// shows it with the workout. Following Apple's DTS advice, the sample is related, not saved first.
+    /// Saves a 1–10 effort rating with the workout. Per Apple DTS, relate the sample; don't save it first.
     func rateEffort(_ score: Int) async -> Bool {
         guard let workout = savedWorkout else { return false }
         let sample = HKQuantitySample(

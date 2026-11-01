@@ -10,11 +10,8 @@ public enum GPXParser {
         case noPoints
     }
 
-    /// Reads a GPX 1.0 or 1.1 file. Uses its track points (every `<trkseg>` of every `<trk>`, in order),
-    /// or its route points when it has no track, and its waypoints.
-    ///
-    /// The name comes from the file (`<metadata><name>`, or `<gpx><name>` in GPX 1.0), then the first
-    /// track or route, then `fallbackName`.
+    /// Reads GPX 1.0/1.1: track points (all segments in order), else route points, plus waypoints.
+    /// Name: metadata, then first track or route, then `fallbackName`.
     public static func parse(_ data: Data, fallbackName: String = "Route") throws(Failure) -> GPXRoute {
         let reader = Reader()
         let parser = XMLParser(data: data)

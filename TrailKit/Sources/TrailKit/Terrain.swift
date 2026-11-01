@@ -9,9 +9,8 @@ public struct TileID: Hashable, Sendable {
     public let y: Int
 }
 
-/// Contour lines from Terrain Tiles: open elevation data (SRTM, EU-DEM and national surveys) that
-/// Mapzen made and AWS hosts as Open Data, free with no account. Each PNG tile stores heights in its
-/// colours ("Terrarium" encoding).
+/// Elevation from Terrain Tiles (Mapzen, on AWS Open Data). Heights are encoded in the PNG
+/// colours ("Terrarium").
 public enum Terrain {
     /// Shown wherever the contours are, as the data's terms ask.
     public static let attribution = "Elevation: Terrain Tiles by Mapzen (SRTM, EU-DEM © Copernicus, USGS and others)"
@@ -20,8 +19,7 @@ public enum Terrain {
         URL(string: "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/\(tile.zoom)/\(tile.x)/\(tile.y).png")!
     }
 
-    /// The tiles covering `box`: zoom 13 (about 15 m a pixel at mid latitudes, near the data's own
-    /// resolution), or coarser for big areas so a route stays a couple of megabytes at most.
+    /// Tiles covering `box` at zoom 13 (~15 m a pixel), or coarser for big areas.
     public static func tiles(covering box: BoundingBox) -> [TileID] {
         for zoom in [13, 12, 11] {
             let tiles = tiles(covering: box, zoom: zoom)
@@ -58,8 +56,7 @@ public enum Terrain {
         return Relief(contourInterval: interval, contours: contours, shading: Hillshade.shading(of: grid))
     }
 
-    /// Contour lines as map features with their heights. The spacing suits the terrain: 10 m in
-    /// gentle country up to 100 m in high mountains.
+    /// Contour lines with heights. The interval grows with the relief, from 10 m to 100 m.
     static func contours(in grid: ElevationGrid) -> (interval: Double, features: [TrailMap.Feature]) {
         guard let low = grid.values.min(), let high = grid.values.max() else { return (0, []) }
 
@@ -80,8 +77,7 @@ public enum Terrain {
     }
 }
 
-/// Shaded relief: each slope lit by a sun in the north-west, 45° up, as on printed maps (and GDAL's
-/// default), so ridges and valleys stand out at a glance.
+/// Shaded relief, lit from the north-west at 45° (GDAL's default).
 enum Hillshade {
     static let azimuth = 315.0
     static let altitude = 45.0
@@ -116,8 +112,7 @@ enum Hillshade {
             north: p.latitude(y: Double(grid.originY)), east: p.longitude(x: Double(grid.originX + grid.width))))
     }
 
-    /// How brightly each pixel is lit, from 0 (facing away) to 1 (facing the sun); flat ground is
-    /// sin(altitude). Slopes come from each pixel's eight neighbours (Horn's method).
+    /// Light per pixel from 0 to 1; flat ground is sin(altitude). Slopes use Horn's method.
     static func illumination(of grid: ElevationGrid, metresPerPixel: Double, exaggeration: Double = 1) -> [Double] {
         let sunEast = sin(azimuth * .pi / 180) * cos(altitude * .pi / 180)
         let sunNorth = cos(azimuth * .pi / 180) * cos(altitude * .pi / 180)
@@ -248,8 +243,7 @@ struct ElevationGrid {
             longitude: projection.longitude(x: Double(originX) + point.x + 0.5))
     }
 
-    /// A 256 × 256 Terrarium PNG's heights. Reads the decoded bytes directly, so no colour
-    /// management can shift the values.
+    /// Heights from a 256 × 256 Terrarium PNG. Reads raw bytes so colour management can't shift them.
     static func decode(_ data: Data) throws -> [Float] {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
@@ -340,8 +334,7 @@ enum Isolines {
         return lines
     }
 
-    /// Where the height crosses `level` along an edge, always measured from the same end so the two
-    /// cells sharing it agree.
+    /// Where `level` crosses an edge, measured from the same end so neighbouring cells agree.
     private static func point(on edge: Edge, in grid: ElevationGrid, at level: Double) -> CGPoint {
         let a = grid.value(x: edge.x, y: edge.y)
         let b = edge.isVertical ? grid.value(x: edge.x, y: edge.y + 1) : grid.value(x: edge.x + 1, y: edge.y)

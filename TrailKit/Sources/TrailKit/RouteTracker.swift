@@ -39,9 +39,8 @@ public struct RouteTracker: Sendable {
 
     public var distanceRemaining: Double { max(0, route.distance - distanceAlong) }
 
-    /// Places a fix on the route. Where the route passes the same place more than once (a loop's
-    /// start and finish, an out-and-back), takes the match that carries on from the previous one, so
-    /// progress doesn't jump; going forward wins over going back.
+    /// Places a fix on the route. Where it passes a spot twice (loops, out-and-backs), picks the
+    /// match that continues from the last one, preferring forward.
     @discardableResult
     public mutating func update(with fix: RoutePoint, accuracy: Double = 0) -> RoutePosition? {
         let matches = route.points.indices.dropLast().map { match(fix, segment: $0) }
@@ -77,8 +76,7 @@ public struct RouteTracker: Sendable {
             .sorted { $0.distanceAlong < $1.distanceAlong }
     }
 
-    /// The route split at `distance` along it, into the part walked and the part ahead. Both
-    /// include the point where it splits, so they join up when drawn.
+    /// Splits the route at `distance` into walked and ahead. Both include the split point.
     public func split(at distance: Double) -> (walked: [RoutePoint], ahead: [RoutePoint]) {
         guard route.points.count > 1, let total = cumulative.last else { return ([], route.points) }
         let distance = min(max(distance, 0), total)
@@ -96,8 +94,7 @@ public struct RouteTracker: Sendable {
         var point: RoutePoint
     }
 
-    /// The closest point of one segment to the fix. Works in flat metres around the fix, which
-    /// holds over a segment's length.
+    /// Closest point on a segment to the fix, in flat metres around the fix.
     private func match(_ fix: RoutePoint, segment index: Int) -> Match {
         let a = route.points[index]
         let b = route.points[index + 1]

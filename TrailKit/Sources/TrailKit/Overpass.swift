@@ -1,7 +1,6 @@
 import Foundation
 
-/// Fetches OpenStreetMap data through the Overpass API. One query per route keeps well inside the
-/// public instance's fair-use limit.
+/// Fetches OpenStreetMap data from the Overpass API, one query per route.
 public enum Overpass {
     public static let endpoint = URL(string: "https://overpass-api.de/api/interpreter")!
 

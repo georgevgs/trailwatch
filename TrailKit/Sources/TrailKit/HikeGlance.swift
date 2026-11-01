@@ -1,7 +1,6 @@
 import Foundation
 
-/// The hike in progress as the watch-face complication shows it. The Watch app writes it to the app
-/// group it shares with its widget extension; nil when no hike is running.
+/// The running hike as the complication shows it, shared through the app group. Nil when idle.
 public struct HikeGlance: Codable, Equatable, Sendable {
     public var routeName: String
     /// From 0 to 1 along the route.
@@ -44,8 +43,7 @@ public struct HikeGlance: Codable, Equatable, Sendable {
 
     public var isPaused: Bool { pausedAt != nil }
 
-    /// Whether going from `old` to `new` is worth redrawing the complication: a hike starting or
-    /// ending, a pause or resume, each whole percent of the route, or every two minutes for the arrival time.
+    /// Worth a reload: start or end, pause or resume, each whole percent, or every two minutes.
     public static func isWorthShowing(_ new: HikeGlance?, after old: HikeGlance?) -> Bool {
         guard let new, let old else { return (new == nil) != (old == nil) }
         return new.isPaused != old.isPaused

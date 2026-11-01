@@ -72,7 +72,7 @@ struct HikeMapView: View {
             .padding(.horizontal, 10)
         }
         .toolbar {
-            // Where watchOS puts Close, so reaching for "back" ends the hike properly instead of leaving it.
+            // Where watchOS puts Close, so "back" ends the hike properly.
             ToolbarItem(placement: .topBarLeading) {
                 Button("End Hike", systemImage: "xmark") {
                     session.showsEndDialog = true
