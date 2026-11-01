@@ -10,6 +10,8 @@ final class WatchTransferService: NSObject {
     private(set) var isWatchReady = false
     private(set) var routesOnWatch: Set<UUID> = []
     private(set) var sending: Set<UUID> = []
+    /// Your pace against Tobler's on recent hikes, from the Watch; 1 until there are any.
+    private(set) var usualPaceFactor = 1.0
     var failure: String?
 
     private let session: WCSession? = WCSession.isSupported() ? .default : nil
@@ -25,8 +27,8 @@ final class WatchTransferService: NSObject {
         guard let session, isWatchReady else { return }
         do {
             try FileManager.default.createDirectory(at: outbox, withIntermediateDirectories: true)
-            let file = outbox.appending(path: "\(route.id.uuidString).json")
-            try JSONEncoder().encode(route).write(to: file, options: .atomic)
+            let file = outbox.appending(path: "\(route.id.uuidString).route")
+            try RouteFile.encode(route).write(to: file, options: .atomic)
             session.transferFile(file, metadata: [WatchTransfer.routeIDKey: route.id.uuidString])
             sending.insert(route.id)
         } catch {
@@ -38,11 +40,16 @@ final class WatchTransferService: NSObject {
         guard let session else { return }
         isWatchReady = session.activationState == .activated && session.isPaired && session.isWatchAppInstalled
         routesOnWatch = Self.routeIDs(in: session.receivedApplicationContext)
+        usualPaceFactor = Self.paceFactor(in: session.receivedApplicationContext)
         sending = Set(session.outstandingFileTransfers.compactMap { Self.routeID(in: $0.file.metadata) })
     }
 
     nonisolated private static func routeIDs(in context: [String: Any]) -> Set<UUID> {
         Set((context[WatchTransfer.routeIDsKey] as? [String] ?? []).compactMap(UUID.init))
+    }
+
+    nonisolated private static func paceFactor(in context: [String: Any]) -> Double {
+        PaceHistory(factors: context[WatchTransfer.paceFactorsKey] as? [Double] ?? []).usualFactor
     }
 
     nonisolated private static func routeID(in metadata: [String: Any]?) -> UUID? {
@@ -70,7 +77,11 @@ extension WatchTransferService: WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext context: [String: Any]) {
         let ids = Self.routeIDs(in: context)
-        Task { @MainActor in self.routesOnWatch = ids }
+        let pace = Self.paceFactor(in: context)
+        Task { @MainActor in
+            self.routesOnWatch = ids
+            self.usualPaceFactor = pace
+        }
     }
 
     nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: (any Error)?) {

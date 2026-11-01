@@ -84,6 +84,28 @@ struct TrailMapTests {
         #expect(ContourLabel.along(line, every: 4000).isEmpty)
     }
 
+    @Test func cellsSplitLinesWithoutGapsOrOverlaps() {
+        let cells = MapCells(size: 500)
+        // 1.2 km east from the middle of a cell, in one long segment.
+        let runs = cells.runs([CGPoint(x: 250, y: 100), CGPoint(x: 1450, y: 100)])
+
+        #expect(runs.map(\.key) == [MapCells.Key(x: 0, y: 0), MapCells.Key(x: 1, y: 0), MapCells.Key(x: 2, y: 0)])
+        for (run, next) in zip(runs, runs.dropFirst()) {
+            #expect(run.points.last == next.points.first)
+        }
+        #expect(runs.first?.points.first == CGPoint(x: 250, y: 100))
+        #expect(runs.last?.points.last == CGPoint(x: 1450, y: 100))
+        // No run reaches more than a quarter cell outside its own.
+        for run in runs {
+            let cell = CGRect(x: Double(run.key.x) * 500, y: Double(run.key.y) * 500, width: 500, height: 500)
+            #expect(run.points.allSatisfy { cell.insetBy(dx: -125, dy: -125).contains($0) })
+        }
+
+        let keys = cells.keys(around: CGRect(x: 10, y: 10, width: 100, height: 100))
+        #expect(keys.count == 9)
+        #expect(keys.contains(MapCells.Key(x: -1, y: -1)))
+    }
+
     @Test func queryCoversTheBox() {
         let query = Overpass.query(for: box)
 

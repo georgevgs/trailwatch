@@ -100,6 +100,8 @@ final class WorkoutRecorder: NSObject {
             healthStore: Self.store, workoutConfiguration: session.workoutConfiguration)
         attach(session, builder)
         state = .recording
+        // The total so far, so the hike doesn't show the GPS count until the next sample.
+        distance = builder.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter())
         return true
     }
 

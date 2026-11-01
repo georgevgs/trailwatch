@@ -374,7 +374,12 @@ enum Isolines {
 
     /// Douglas–Peucker: drops points within `tolerance` of the line through their neighbours.
     static func simplify(_ points: [CGPoint], tolerance: Double) -> [CGPoint] {
-        guard points.count > 2 else { return points }
+        simplifiedIndices(points, tolerance: tolerance).map { points[$0] }
+    }
+
+    /// The indices `simplify` keeps, in order.
+    static func simplifiedIndices(_ points: [CGPoint], tolerance: Double) -> [Int] {
+        guard points.count > 2 else { return Array(points.indices) }
         var keep = Array(repeating: false, count: points.count)
         keep[0] = true
         keep[points.count - 1] = true
@@ -392,7 +397,7 @@ enum Isolines {
                 stack += [(first, farthest), (farthest, last)]
             }
         }
-        return points.indices.filter { keep[$0] }.map { points[$0] }
+        return points.indices.filter { keep[$0] }
     }
 
     private static func distanceToSegment(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> Double {

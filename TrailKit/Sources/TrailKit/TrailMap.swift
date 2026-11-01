@@ -64,6 +64,14 @@ public struct TrailMap: Codable, Sendable, Equatable {
     public var downloaded: Date
     /// Metres around the route the map covers; nil for maps from before it was a choice (600 m).
     public var margin: Double?
+    /// The format the map was made in; nil for the first. See `currentVersion`.
+    public var version: Int?
+
+    /// 2: contours run with higher ground on their left, for labels facing uphill.
+    public static let currentVersion = 2
+
+    /// Made before the current format, so its contours should be rebuilt.
+    public var isOutdated: Bool { (version ?? 1) < Self.currentVersion }
 }
 
 /// A latitude/longitude rectangle.
@@ -148,5 +156,54 @@ public struct ContourLabel: Sendable, Equatable {
             travelled += length
         }
         return labels
+    }
+}
+
+/// Square cells over the flat map, so a frame draws only the lines near the screen.
+public struct MapCells: Sendable {
+    public struct Key: Hashable, Sendable {
+        public let x: Int
+        public let y: Int
+    }
+
+    /// Metres along a cell's side.
+    public let size: Double
+
+    public init(size: Double) {
+        self.size = size
+    }
+
+    public func key(_ point: CGPoint) -> Key {
+        Key(x: Int((point.x / size).rounded(.down)), y: Int((point.y / size).rounded(.down)))
+    }
+
+    /// The line cut into runs, each in the cell that holds its segments' middles. Neighbouring runs
+    /// share their joining point, so the line stays whole and no part is drawn twice. Long segments
+    /// are split first, so no run reaches more than a quarter cell past its own.
+    public func runs(_ line: [CGPoint]) -> [(key: Key, points: [CGPoint])] {
+        var points: [CGPoint] = line.first.map { [$0] } ?? []
+        for (a, b) in zip(line, line.dropFirst()) {
+            let pieces = max(1, Int((hypot(b.x - a.x, b.y - a.y) / (size / 2)).rounded(.up)))
+            for step in 1...pieces {
+                let t = Double(step) / Double(pieces)
+                points.append(CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t))
+            }
+        }
+        var runs: [(key: Key, points: [CGPoint])] = []
+        for (a, b) in zip(points, points.dropFirst()) {
+            let cell = key(CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2))
+            if runs.last?.key == cell {
+                runs[runs.count - 1].points.append(b)
+            } else {
+                runs.append((cell, [a, b]))
+            }
+        }
+        return runs
+    }
+
+    /// Every cell a run drawn inside `rect` could belong to.
+    public func keys(around rect: CGRect) -> [Key] {
+        let low = key(CGPoint(x: rect.minX, y: rect.minY)), high = key(CGPoint(x: rect.maxX, y: rect.maxY))
+        return (low.y - 1...high.y + 1).flatMap { y in (low.x - 1...high.x + 1).map { Key(x: $0, y: y) } }
     }
 }

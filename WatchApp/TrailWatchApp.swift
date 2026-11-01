@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, WKApplicationDelegate {
     private let phone: PhoneConnection
 
     override init() {
-        let library = RouteLibrary()
+        let library = RouteLibrary(mapsDirectory: URL.applicationSupportDirectory.appending(path: "Maps"))
         self.library = library
         let hikes = HikeManager(library: library)
         self.hikes = hikes

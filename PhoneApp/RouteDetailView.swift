@@ -34,7 +34,8 @@ struct RouteDetailView: View {
                 LabeledContent("Ascent", value: "\(Format.metres(route.elevationGain)) m")
                 LabeledContent("Type", value: route.isLoop ? "Loop" : "One way")
                 LabeledContent("Estimated time", value: Format.hoursMinutes(
-                    FinishEstimate(profile: ElevationProfile(route: route)).timeToFinish(along: 0, elapsed: 0)))
+                    FinishEstimate(profile: ElevationProfile(route: route), usualFactor: watch.usualPaceFactor)
+                        .timeToFinish(along: 0, elapsed: 0)))
                 LabeledContent("Points", value: route.points.count.formatted())
                 if !route.waypoints.isEmpty {
                     LabeledContent("Waypoints", value: route.waypoints.count.formatted())
@@ -51,8 +52,15 @@ struct RouteDetailView: View {
                 if maps.downloading.contains(route.id) {
                     HStack {
                         ProgressView()
-                        Text("Downloading map data…")
-                            .foregroundStyle(.secondary)
+                        if let start = maps.started[route.id] {
+                            // The OpenStreetMap server often takes half a minute when busy.
+                            Text("Waiting for OpenStreetMap… \(Text(start, style: .timer))")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        } else {
+                            Text("Updating contours…")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } else if let map = route.map {
                     LabeledContent("Paths and tracks", value: map.features.count { $0.kind == .path || $0.kind == .track }.formatted())
@@ -101,7 +109,7 @@ struct RouteDetailView: View {
 
     private var mapFooter: String {
         if maps.failed.contains(route.id) {
-            "Couldn't download the map data. Check your connection; the OpenStreetMap server is sometimes busy."
+            "Couldn't download the map data. Check your connection; the OpenStreetMap server is sometimes busy. It tries again next time you open the app."
         } else {
             "Paths, tracks, roads, water, landmarks, contour lines and hill shading, drawn on your Watch when there's no signal. A bigger area takes longer to download. If you leave the app, the download carries on. Map data © OpenStreetMap contributors. \(Terrain.attribution)."
         }

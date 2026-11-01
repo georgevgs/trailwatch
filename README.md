@@ -26,9 +26,9 @@ Design/        App icon script (needs Pillow)
 
 ## How it works
 
-- **Transfer:** the iPhone sends each route as JSON with `WCSession.transferFile`. The Watch stores it and replies with the IDs it has.
+- **Transfer:** the iPhone sends each route as LZFSE-compressed JSON with `WCSession.transferFile`. The Watch keeps each map in its own file, read only when a hike starts, and replies with its route IDs and your pace history.
 - **Progress:** `RouteTracker` snaps each fix to the nearest segment. On loops and out-and-backs it picks the match that continues from the last one.
-- **Off route:** `OffRouteMonitor` alerts after 10 s beyond the threshold and clears within 60% of it. It ignores inaccurate fixes and stays quiet until you've reached the route. The alert's arrow follows the Watch's compass.
+- **Off route:** `OffRouteMonitor` alerts after 10 s beyond the threshold and clears within 60% of it. It ignores inaccurate fixes and stays quiet until you've reached the route. The alert's arrow follows the Watch's compass, or your direction of travel while it's uncalibrated.
 - **Time to finish:** Tobler's hiking function, scaled by your pace. It starts from the median of your last five saved hikes and moves towards today's pace as you walk.
 - **Recording:** an `HKWorkoutSession` (hiking, outdoor) keeps the app alive with the wrist down and saves the GPS route and climb. Distance is Health's own. Without Health access, the hike still works but isn't saved, and distance comes from GPS.
 - **Recovery:** the hike belongs to `HikeManager`, not a screen. If the app quits, watchOS relaunches it and the workout and progress are restored.
@@ -38,7 +38,7 @@ Design/        App icon script (needs Pillow)
 
 The route, position, alerts and recording always work offline. The map underneath is drawn from data downloaded with the route:
 
-- **OpenStreetMap** via one Overpass query per route: paths, roads, water, woods, peaks, springs, shelters. Lines are cut at the map's edge. A busy server gets one more try after 30 s. Apps can't use Apple Maps offline areas, watchOS MapKit has no custom tiles, and free tile servers forbid bulk downloads, so the app draws vector data itself.
+- **OpenStreetMap** via one Overpass query per route: paths, roads, water, woods, peaks, springs, shelters. Lines are cut at the map's edge and points within 2 m of a straight line dropped. Queries run one at a time, and a busy server gets one more try after 30 s. Unfinished downloads resume when the app next opens, and maps in an older format get their contours rebuilt. Apps can't use Apple Maps offline areas, watchOS MapKit has no custom tiles, and free tile servers forbid bulk downloads, so the app draws vector data itself.
 - **Contours and hill shading** from [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/). The iPhone traces the contours and renders the shading, then sends only lines and a small PNG. Contours run with higher ground on their left, so the Watch can write their heights facing uphill.
 
 Routes without map data fall back to Apple Maps.
@@ -76,10 +76,7 @@ Both credits are shown on the map in the app.
 
 ## Known limits
 
-- Overpass can be slow when busy (about 35 s for the Kaisariani route). Tap **Try Again** if a download fails.
-- Closing the iPhone app from the app switcher stops a map download. Leaving it in the background doesn't.
-- Bigger map areas mean bigger downloads and files on the Watch: 1.5 km around the Kaisariani route is about 0.4 MB, 600 m about 0.1 MB.
-- Maps downloaded before contour labels existed need **Update Map** for the labels to face uphill.
-- The off-route arrow points north-up until the Watch's compass is calibrated.
-- Only the Watch learns your pace. The iPhone's time estimate is plain Tobler.
-- For the first few seconds of a hike, distance comes from GPS until Health reports its own.
+- Overpass can be slow when busy (about 35 s for the Kaisariani route).
+- A download stopped by closing the app from the app switcher resumes only when you next open it.
+- The off-route arrow points north-up while you stand still with an uncalibrated compass.
+- Distance reads 0 for the first few seconds of a hike, until Health reports.

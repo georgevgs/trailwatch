@@ -48,12 +48,12 @@ final class HikeSession {
     private var tracking: Task<Void, Never>?
 
     /// A new hike, or one carrying on with a recovered workout and its saved progress.
-    init(route: GPXRoute, progress: HikeProgress, workout: WorkoutRecorder = WorkoutRecorder()) {
+    init(route: GPXRoute, map: TrailMap?, progress: HikeProgress, workout: WorkoutRecorder = WorkoutRecorder()) {
         let route = progress.reversed ? route.reversed() : route
         self.route = route
         record = progress
         self.workout = workout
-        mapLayers = route.map.map(TrailMapLayers.init)
+        mapLayers = map.map(TrailMapLayers.init)
         let tracker = RouteTracker(route: route)
         self.tracker = tracker
         stops = tracker.stops()
@@ -77,8 +77,12 @@ final class HikeSession {
     }
     private var batteryAtEnd: Float?
 
-    /// Metres walked as Apple Health counts them; from GPS when the hike isn't recorded.
-    var distanceWalked: Double { workout.distance ?? record.distanceWalked }
+    /// Metres walked as Apple Health counts them. From GPS when the hike isn't recorded, or when
+    /// Health hasn't reported anything 30 s in (for example, without read access).
+    var distanceWalked: Double {
+        if let health = workout.distance { return health }
+        return workout.state == .recording && elapsed < 30 ? 0 : record.distanceWalked
+    }
 
     /// Metres climbed, from the watch's GPS and barometric altitude.
     var ascent: Double { record.ascent }

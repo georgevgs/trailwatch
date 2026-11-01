@@ -24,6 +24,11 @@ struct OffRouteView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                if facing.source == .travel {
+                    Text("Arrow by direction of travel")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
 
                 Button {
                     session.showsWayBack = true
@@ -50,6 +55,17 @@ struct OffRouteView: View {
 
     private var distance: Double { session.tracker.position?.distanceFromRoute ?? 0 }
 
+    enum FacingSource { case compass, travel, north }
+
+    /// Which way the dial's top points: the compass, else the way you're walking, else north.
+    private var facing: (degrees: Double, source: FacingSource) {
+        if let heading = compassService.heading { return (heading, .compass) }
+        if let fix = session.location, fix.speed > 0.5, (0...45).contains(fix.courseAccuracy), fix.course >= 0 {
+            return (fix.course, .travel)
+        }
+        return (0, .north)
+    }
+
     /// Compass bearing from you to the nearest point of the route.
     private var bearing: Double {
         guard let you = session.location?.coordinate, let trail = session.tracker.position?.nearestPoint else { return 0 }
@@ -59,7 +75,7 @@ struct OffRouteView: View {
     /// A dial with an arrow towards the trail. It turns with the Watch, so the arrow points the
     /// way to walk; without a compass reading it stays north-up.
     private var compass: some View {
-        let heading = compassService.heading ?? 0
+        let heading = facing.degrees
         return ZStack {
             Circle()
                 .strokeBorder(Color.offRoute.opacity(0.35), lineWidth: 2)

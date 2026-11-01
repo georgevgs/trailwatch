@@ -7,6 +7,7 @@ struct TrailWatchPhoneApp: App {
     @State private var library: RouteLibrary
     @State private var watch: WatchTransferService
     @State private var maps: OfflineMapService
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let library = RouteLibrary()
@@ -22,6 +23,9 @@ struct TrailWatchPhoneApp: App {
                 .environment(library)
                 .environment(watch)
                 .environment(maps)
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase == .active { Task { await maps.catchUp() } }
         }
     }
 }

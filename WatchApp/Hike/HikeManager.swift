@@ -15,7 +15,7 @@ final class HikeManager {
     func start(_ route: GPXRoute, reversed: Bool, offRouteDistance: Double) {
         guard current == nil else { return }
         let progress = HikeProgress(routeID: route.id, reversed: reversed, offRouteDistance: offRouteDistance)
-        let hike = HikeSession(route: route, progress: progress)
+        let hike = HikeSession(route: route, map: library.map(for: route.id), progress: progress)
         hike.start()
         current = hike
     }
@@ -36,7 +36,7 @@ final class HikeManager {
             HikeProgress.saved = nil
             return
         }
-        let hike = HikeSession(route: route, progress: progress, workout: workout)
+        let hike = HikeSession(route: route, map: library.map(for: route.id), progress: progress, workout: workout)
         hike.start()
         current = hike
     }

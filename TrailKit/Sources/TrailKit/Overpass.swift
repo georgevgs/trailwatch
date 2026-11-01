@@ -45,10 +45,17 @@ public enum Overpass {
 
     private static let waterways: Set = ["river", "stream", "brook", "canal", "ditch", "drain"]
 
-    /// Reads an Overpass JSON response made with `out geom`. Anything TrailWatch doesn't draw is skipped.
+    /// Reads an Overpass JSON response made with `out geom`. Anything TrailWatch doesn't draw is skipped,
+    /// and points within 2 m of a straight line are dropped: about half of them, unseen on a Watch.
     public static func trailMap(from data: Data, bounds: BoundingBox, downloaded: Date = .now) throws -> TrailMap {
         let response = try JSONDecoder().decode(Response.self, from: data)
-        let features = response.elements.flatMap(features)
+        let projection = MapProjection(origin: bounds.center)
+        let features = response.elements.flatMap(features).map { feature in
+            var feature = feature
+            let flat = feature.points.map { projection.point(latitude: $0.latitude, longitude: $0.longitude) }
+            feature.points = Isolines.simplifiedIndices(flat, tolerance: 2).map { feature.points[$0] }
+            return feature
+        }
         return TrailMap(bounds: bounds, features: features, downloaded: downloaded)
     }
 

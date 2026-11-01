@@ -26,6 +26,11 @@ extension PaceHistory {
     /// Your pace on saved hikes, kept on the Watch.
     static var saved: PaceHistory {
         get { UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(PaceHistory.self, from: $0) } ?? PaceHistory() }
-        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: key) }
+        set {
+            UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: key)
+            NotificationCenter.default.post(name: changed, object: nil)
+        }
     }
+
+    static let changed = Notification.Name("paceHistoryChanged")
 }

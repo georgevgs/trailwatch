@@ -57,7 +57,7 @@ struct RouteListView: View {
                 Text("\(Format.kilometres(route.distance)) km · ↑ \(Format.metres(route.elevationGain)) m")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                if route.map != nil {
+                if library.hasMap(route.id) {
                     Label("Offline map", systemImage: "checkmark")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.done)

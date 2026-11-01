@@ -65,17 +65,30 @@ struct TrailMapView: View {
                 }
             }
 
+            // Only what's near the screen, in flat metres.
+            let visible = CGRect(origin: .zero, size: size).applying(transform.inverted())
+            let near = layers.lines(near: visible)
+            func strokeLines(_ line: KeyPath<TrailMapLayers.Lines, Path>, _ color: Color, _ width: CGFloat, dash: [CGFloat] = []) {
+                for cell in near { stroke(cell[keyPath: line], color, width, dash: dash) }
+            }
+
             if !isSimple {
-                context.fill(layers.woods.applying(transform), with: .color(.mapWood))
-                context.fill(layers.water.applying(transform), with: .color(.mapWater))
+                for wood in layers.woods where wood.bounds.intersects(visible) {
+                    context.fill(wood.path.applying(transform), with: .color(.mapWood))
+                }
+                for water in layers.water where water.bounds.intersects(visible) {
+                    context.fill(water.path.applying(transform), with: .color(.mapWater))
+                }
                 if let shading = layers.shading {
                     context.draw(shading.image, in: shading.rect.applying(transform))
                 }
                 var gapped = context
                 if !gaps.isEmpty { gapped.clip(to: gaps, options: .inverse) }
-                for (path, width) in [(layers.contours, 0.6), (layers.indexContours, 1.1)] {
-                    gapped.stroke(path.applying(transform), with: .color(.mapContour),
-                                  style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                for cell in near {
+                    for (path, width) in [(cell.contours, 0.6), (cell.indexContours, 1.1)] {
+                        gapped.stroke(path.applying(transform), with: .color(.mapContour),
+                                      style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                    }
                 }
                 for label in contourLabels {
                     var rotated = context
@@ -83,13 +96,13 @@ struct TrailMapView: View {
                     rotated.rotate(by: .radians(label.angle))
                     rotated.draw(label.text, at: .zero)
                 }
-                stroke(layers.streams, .mapStream, 1.5)
-                stroke(layers.majorRoads, .mapMajorRoad, 3)
-                stroke(layers.roads, .mapRoad, 2)
+                strokeLines(\.streams, .mapStream, 1.5)
+                strokeLines(\.majorRoads, .mapMajorRoad, 3)
+                strokeLines(\.roads, .mapRoad, 2)
             }
 
-            stroke(layers.tracks, .mapTrack, 1.5, dash: [4, 3])
-            stroke(layers.paths, .mapPath, 1.2, dash: [3, 2])
+            strokeLines(\.tracks, .mapTrack, 1.5, dash: [4, 3])
+            strokeLines(\.paths, .mapPath, 1.2, dash: [3, 2])
 
             stroke(line(walked + ahead.dropFirst()), .black.opacity(0.55), 7)
             stroke(line(ahead), .accentColor.opacity(0.42), 4)
