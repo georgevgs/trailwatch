@@ -69,7 +69,8 @@ struct HikeMapView: View {
                     }
                 }
             }
-            .padding(.horizontal, 10)
+            // Keeps the controls clear of the screen's rounded corners.
+            .scenePadding(.horizontal)
         }
         .toolbar {
             // Where watchOS puts Close, so "back" ends the hike properly.

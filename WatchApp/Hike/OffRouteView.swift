@@ -42,6 +42,7 @@ struct OffRouteView: View {
                 Button("Dismiss") { dismiss() }
                     .buttonStyle(.glass)
             }
+            .scenePadding(.horizontal)
         }
         .onAppear { compassService.start() }
         .onDisappear { compassService.stop() }

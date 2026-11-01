@@ -62,6 +62,7 @@ struct RouteDetailView: View {
                 .buttonStyle(.glassProminent)
                 .handGestureShortcut(.primaryAction)
             }
+            .scenePadding(.horizontal)
         }
         // Asked here rather than at Start, so the hike begins without a prompt in the way.
         .task { await WorkoutRecorder.requestAuthorization() }

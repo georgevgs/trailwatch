@@ -80,6 +80,7 @@ struct StatsView: View {
                 .buttonStyle(.glass)
                 .padding(.top, 6)
             }
+            .scenePadding(.horizontal)
             .monospacedDigit()
         }
     }

@@ -64,6 +64,7 @@ struct SummaryView: View {
                 .buttonStyle(.glassProminent)
                 .handGestureShortcut(.primaryAction)
             }
+            .scenePadding(.horizontal)
         }
     }
 
