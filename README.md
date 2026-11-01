@@ -77,4 +77,9 @@ Both credits are shown on the map in the app.
 ## Known limits
 
 - Overpass can be slow when busy (about 35 s for the Kaisariani route). Tap **Try Again** if a download fails.
+- Closing the iPhone app from the app switcher stops a map download. Leaving it in the background doesn't.
+- Bigger map areas mean bigger downloads and files on the Watch: 1.5 km around the Kaisariani route is about 0.4 MB, 600 m about 0.1 MB.
 - Maps downloaded before contour labels existed need **Update Map** for the labels to face uphill.
+- The off-route arrow points north-up until the Watch's compass is calibrated.
+- Only the Watch learns your pace. The iPhone's time estimate is plain Tobler.
+- For the first few seconds of a hike, distance comes from GPS until Health reports its own.
