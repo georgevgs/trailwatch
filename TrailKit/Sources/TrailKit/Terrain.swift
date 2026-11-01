@@ -56,7 +56,8 @@ public enum Terrain {
         return Relief(contourInterval: interval, contours: contours, shading: Hillshade.shading(of: grid))
     }
 
-    /// Contour lines with heights. The interval grows with the relief, from 10 m to 100 m.
+    /// Contour lines with heights, each running with higher ground on its left so labels can face uphill.
+    /// The interval grows with the relief, from 10 m to 100 m.
     static func contours(in grid: ElevationGrid) -> (interval: Double, features: [TrailMap.Feature]) {
         guard let low = grid.values.min(), let high = grid.values.max() else { return (0, []) }
 
@@ -68,8 +69,9 @@ public enum Terrain {
             for line in Isolines.lines(in: grid, at: level) {
                 let simplified = Isolines.simplify(line, tolerance: 0.5)
                 guard simplified.count >= 3 else { continue }
+                let oriented = Isolines.uphillOnLeft(simplified, in: grid, at: level)
                 features.append(TrailMap.Feature(
-                    kind: .contour, elevation: level, points: simplified.map(grid.coordinate)))
+                    kind: .contour, elevation: level, points: oriented.map(grid.coordinate)))
             }
             level += interval
         }
@@ -219,6 +221,16 @@ struct ElevationGrid {
 
     func value(x: Int, y: Int) -> Double { Double(values[y * width + x]) }
 
+    /// The height between pixels, bilinear, clamped to the grid.
+    func interpolated(at point: CGPoint) -> Double {
+        let x = min(max(point.x, 0), Double(width - 1)), y = min(max(point.y, 0), Double(height - 1))
+        let x0 = Int(x), y0 = Int(y), x1 = min(x0 + 1, width - 1), y1 = min(y0 + 1, height - 1)
+        let tx = x - Double(x0), ty = y - Double(y0)
+        let top = value(x: x0, y: y0) * (1 - tx) + value(x: x1, y: y0) * tx
+        let bottom = value(x: x0, y: y1) * (1 - tx) + value(x: x1, y: y1) * tx
+        return top * (1 - ty) + bottom * ty
+    }
+
     /// The grid with each `factor` × `factor` block of pixels averaged into one.
     func averaged(by factor: Int) -> ElevationGrid {
         let smallWidth = (width + factor - 1) / factor, smallHeight = (height + factor - 1) / factor
@@ -342,6 +354,22 @@ enum Isolines {
         return edge.isVertical
             ? CGPoint(x: Double(edge.x), y: Double(edge.y) + t)
             : CGPoint(x: Double(edge.x) + t, y: Double(edge.y))
+    }
+
+    /// The line, reversed if needed so that, walking along it, the ground to the left is higher.
+    /// Checks one pixel to the side of its longest segment.
+    static func uphillOnLeft(_ line: [CGPoint], in grid: ElevationGrid, at level: Double) -> [CGPoint] {
+        guard let index = line.indices.dropLast().max(by: {
+            hypot(line[$0 + 1].x - line[$0].x, line[$0 + 1].y - line[$0].y)
+                < hypot(line[$1 + 1].x - line[$1].x, line[$1 + 1].y - line[$1].y)
+        }) else { return line }
+        let a = line[index], b = line[index + 1]
+        let length = hypot(b.x - a.x, b.y - a.y)
+        guard length > 0 else { return line }
+        // Rows run north to south, so the left of (dx, dy) is (dy, −dx).
+        let middle = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        let left = CGPoint(x: middle.x + (b.y - a.y) / length, y: middle.y - (b.x - a.x) / length)
+        return grid.interpolated(at: left) >= level ? line : line.reversed()
     }
 
     /// Douglas–Peucker: drops points within `tolerance` of the line through their neighbours.

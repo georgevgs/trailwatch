@@ -1,4 +1,5 @@
 import Foundation
+import TrailKit
 
 /// What a hike needs to resume after the app quits. The workout itself comes back from HealthKit.
 nonisolated struct HikeProgress: Codable, Equatable {
@@ -16,5 +17,15 @@ nonisolated struct HikeProgress: Codable, Equatable {
     static var saved: HikeProgress? {
         get { UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(HikeProgress.self, from: $0) } }
         set { UserDefaults.standard.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: key) }
+    }
+}
+
+extension PaceHistory {
+    private static let key = "paceHistory"
+
+    /// Your pace on saved hikes, kept on the Watch.
+    static var saved: PaceHistory {
+        get { UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(PaceHistory.self, from: $0) } ?? PaceHistory() }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: key) }
     }
 }

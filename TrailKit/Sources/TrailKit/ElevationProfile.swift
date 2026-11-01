@@ -92,13 +92,21 @@ public struct ElevationProfile: Sendable {
     }
 }
 
-/// Time to finish: Tobler's estimate, scaled to your own pace after 1 km and 10 min on the route.
+/// Time to finish: Tobler's estimate scaled by your pace. It starts from your past hikes and
+/// moves towards today's pace as you walk; after 1 km on the route, each counts the same.
 public struct FinishEstimate: Sendable {
     public let profile: ElevationProfile
+    /// Your usual pace against Tobler's, from past hikes; 1 without any.
+    public let usualFactor: Double
     private var joined: (along: Double, elapsed: TimeInterval)?
 
-    public init(profile: ElevationProfile) {
+    /// Kilometres on the route after which today's pace counts as much as your usual one.
+    static let blendDistance = 1.0
+    static let factorRange = 0.6...2.5
+
+    public init(profile: ElevationProfile, usualFactor: Double = 1) {
         self.profile = profile
+        self.usualFactor = min(max(usualFactor, Self.factorRange.lowerBound), Self.factorRange.upperBound)
     }
 
     /// Notes where and when you first reached the route, so the walk to the trailhead isn't counted.
@@ -106,14 +114,45 @@ public struct FinishEstimate: Sendable {
         if joined == nil { joined = (along, elapsed) }
     }
 
-    /// How much slower (above 1) or faster than Tobler's pace you've been.
-    public func paceFactor(along: Double, elapsed: TimeInterval) -> Double {
-        guard let joined, along - joined.along >= 1000, elapsed - joined.elapsed >= 600 else { return 1 }
+    /// Today's pace against Tobler's (above 1 is slower), once there's enough to judge: 200 m and 2 min on the route.
+    public func todaysFactor(along: Double, elapsed: TimeInterval) -> Double? {
+        guard let joined, along - joined.along >= 200, elapsed - joined.elapsed >= 120 else { return nil }
         let expected = profile.walkingTime(from: joined.along, to: along)
-        return min(max((elapsed - joined.elapsed) / expected, 0.6), 2.5)
+        guard expected > 0 else { return nil }
+        return min(max((elapsed - joined.elapsed) / expected, Self.factorRange.lowerBound), Self.factorRange.upperBound)
+    }
+
+    /// How much slower (above 1) or faster than Tobler's pace to expect for the rest.
+    public func paceFactor(along: Double, elapsed: TimeInterval) -> Double {
+        guard let joined, let today = todaysFactor(along: along, elapsed: elapsed) else { return usualFactor }
+        let walked = (along - joined.along) / 1000
+        return (usualFactor * Self.blendDistance + today * walked) / (Self.blendDistance + walked)
     }
 
     public func timeToFinish(along: Double, elapsed: TimeInterval) -> TimeInterval {
         profile.walkingTime(from: along, to: profile.length) * paceFactor(along: along, elapsed: elapsed)
+    }
+}
+
+/// Your pace on past hikes against Tobler's, newest last.
+public struct PaceHistory: Codable, Sendable, Equatable {
+    public private(set) var factors: [Double] = []
+
+    public init(factors: [Double] = []) {
+        self.factors = factors
+    }
+
+    /// The median of the last five hikes, so one odd day doesn't skew it; 1 without any.
+    public var usualFactor: Double {
+        let recent = factors.suffix(5).sorted()
+        guard !recent.isEmpty else { return 1 }
+        let middle = recent.count / 2
+        return recent.count.isMultiple(of: 2) ? (recent[middle - 1] + recent[middle]) / 2 : recent[middle]
+    }
+
+    /// Adds a finished hike when it covered at least 2 km of the route in 20 min.
+    public mutating func add(_ estimate: FinishEstimate, along: Double, elapsed: TimeInterval) {
+        guard along >= 2000, elapsed >= 1200, let factor = estimate.todaysFactor(along: along, elapsed: elapsed) else { return }
+        factors = Array((factors + [factor]).suffix(10))
     }
 }

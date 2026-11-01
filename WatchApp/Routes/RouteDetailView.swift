@@ -11,7 +11,7 @@ struct RouteDetailView: View {
         // Walking it the other way changes the start and the climb.
         let shown = reversed ? route.reversed() : route
         let profile = ElevationProfile(route: shown)
-        let duration = FinishEstimate(profile: profile).timeToFinish(along: 0, elapsed: 0)
+        let duration = FinishEstimate(profile: profile, usualFactor: PaceHistory.saved.usualFactor).timeToFinish(along: 0, elapsed: 0)
         let sunset = shown.points.first.flatMap { Sun.sunset(on: .now, latitude: $0.latitude, longitude: $0.longitude) }
 
         ScrollView {

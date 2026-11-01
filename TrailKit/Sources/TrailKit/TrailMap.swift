@@ -41,9 +41,10 @@ public struct TrailMap: Codable, Sendable, Equatable {
         }
 
         public func encode(to encoder: any Encoder) throws {
+            // Six decimals is about 10 cm, plenty for a map and half the digits of a computed contour point.
             var container = encoder.unkeyedContainer()
-            try container.encode(latitude)
-            try container.encode(longitude)
+            try container.encode((latitude * 1e6).rounded() / 1e6)
+            try container.encode((longitude * 1e6).rounded() / 1e6)
         }
     }
 
@@ -61,6 +62,8 @@ public struct TrailMap: Codable, Sendable, Equatable {
     public var contourInterval: Double?
     public var shading: Shading?
     public var downloaded: Date
+    /// Metres around the route the map covers; nil for maps from before it was a choice (600 m).
+    public var margin: Double?
 }
 
 /// A latitude/longitude rectangle.
@@ -114,5 +117,36 @@ public struct MapProjection: Sendable {
 
     public func point(_ routePoint: RoutePoint) -> CGPoint {
         point(latitude: routePoint.latitude, longitude: routePoint.longitude)
+    }
+}
+
+/// Where to write a contour's height along it, in flat map metres (+y south).
+public struct ContourLabel: Sendable, Equatable {
+    public var point: CGPoint
+    /// Radians to turn the text to follow the line, never more than a quarter turn so it reads upright.
+    public var angle: Double
+    /// Counting along the line, so a zoomed-out map can show every second or third.
+    public var index: Int
+
+    /// Labels every `spacing` metres, starting half a spacing in. Contours run with higher ground on
+    /// their left, so the text's top faces uphill unless that would leave it upside down.
+    public static func along(_ line: [CGPoint], every spacing: Double) -> [ContourLabel] {
+        var labels: [ContourLabel] = []
+        var next = spacing / 2
+        var travelled = 0.0
+        for (a, b) in zip(line, line.dropFirst()) {
+            let length = hypot(b.x - a.x, b.y - a.y)
+            guard length > 0 else { continue }
+            while next <= travelled + length {
+                let t = (next - travelled) / length
+                var angle = atan2(b.y - a.y, b.x - a.x)
+                if angle > .pi / 2 { angle -= .pi } else if angle < -.pi / 2 { angle += .pi }
+                labels.append(ContourLabel(
+                    point: CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t), angle: angle, index: labels.count))
+                next += spacing
+            }
+            travelled += length
+        }
+        return labels
     }
 }

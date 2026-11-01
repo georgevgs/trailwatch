@@ -28,6 +28,8 @@ final class WorkoutRecorder: NSObject {
     private(set) var heartRate: Double?
     /// The heart-rate zone you're in, counted from 1, using the zones set in Health (watchOS 27).
     private(set) var heartRateZone: Int?
+    /// Metres walked as Apple Health counts them, while recording or once saved.
+    private(set) var distance: Double?
     @ObservationIgnored var onChange: ((Change, Date) -> Void)?
 
     /// Apple recommends one health store for the whole app.
@@ -124,6 +126,7 @@ final class WorkoutRecorder: NSObject {
             builder.discardWorkout()
             session.end()
             state = .notRecording
+            distance = nil
             return
         }
         do {
@@ -141,7 +144,12 @@ final class WorkoutRecorder: NSObject {
                 ])
             }
             // Also saves the route, which belongs to this builder.
-            savedWorkout = try await builder.finishWorkout()
+            let workout = try await builder.finishWorkout()
+            savedWorkout = workout
+            // The saved total, so the summary matches Health exactly.
+            if let saved = workout?.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity() {
+                distance = saved.doubleValue(for: .meter())
+            }
             session.end()
             state = .saved
         } catch {
@@ -215,12 +223,17 @@ extension WorkoutRecorder: HKWorkoutSessionDelegate {
 
 extension WorkoutRecorder: HKLiveWorkoutBuilderDelegate {
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        let type = HKQuantityType(.heartRate)
-        guard collectedTypes.contains(type),
-              let bpm = workoutBuilder.statistics(for: type)?.mostRecentQuantity()?
-                  .doubleValue(for: .count().unitDivided(by: .minute()))
-        else { return }
-        Task { @MainActor in self.heartRate = bpm }
+        let heartRateType = HKQuantityType(.heartRate)
+        if collectedTypes.contains(heartRateType),
+           let bpm = workoutBuilder.statistics(for: heartRateType)?.mostRecentQuantity()?
+               .doubleValue(for: .count().unitDivided(by: .minute())) {
+            Task { @MainActor in self.heartRate = bpm }
+        }
+        let distanceType = HKQuantityType(.distanceWalkingRunning)
+        if collectedTypes.contains(distanceType),
+           let metres = workoutBuilder.statistics(for: distanceType)?.sumQuantity()?.doubleValue(for: .meter()) {
+            Task { @MainActor in if self.state == .recording { self.distance = metres } }
+        }
     }
 
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didUpdateWorkoutZone update: HKLiveWorkoutZoneUpdate) {

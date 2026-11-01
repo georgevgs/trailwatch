@@ -48,19 +48,44 @@ struct TrailInfoTests {
         #expect(chart.last == profile.samples.last)
     }
 
-    @Test func finishEstimateLearnsYourPace() {
+    @Test func finishEstimateBlendsUsualAndTodaysPace() {
         let points = (0...40).map { RoutePoint(latitude: Double($0) * 0.001, longitude: 0, elevation: 100) }
-        var estimate = FinishEstimate(profile: ElevationProfile(route: GPXRoute(name: "Flat", points: points)))
-        let tobler = estimate.timeToFinish(along: 0, elapsed: 0)
-        #expect(abs(tobler - estimate.profile.length / ElevationProfile.toblerSpeed(slope: 0) * 3.6) < 0.01)
+        let profile = ElevationProfile(route: GPXRoute(name: "Flat", points: points))
+        let flatSecondsPerMetre = 3.6 / ElevationProfile.toblerSpeed(slope: 0)
+
+        var estimate = FinishEstimate(profile: profile)
+        #expect(abs(estimate.timeToFinish(along: 0, elapsed: 0) - profile.length * flatSecondsPerMetre) < 0.01)
+
+        // Slow walkers start slow.
+        var usual = FinishEstimate(profile: profile, usualFactor: 1.5)
+        #expect(usual.paceFactor(along: 0, elapsed: 0) == 1.5)
 
         estimate.reachedRoute(along: 0, elapsed: 120)
+        usual.reachedRoute(along: 0, elapsed: 120)
         // Too little walked yet to judge.
-        #expect(estimate.paceFactor(along: 500, elapsed: 600) == 1)
-        // 2 km in 48 min is half Tobler's speed.
-        let along = 2000.0
-        let factor = estimate.paceFactor(along: along, elapsed: 120 + along / ElevationProfile.toblerSpeed(slope: 0) * 3.6 * 2)
-        #expect(abs(factor - 2) < 0.01)
+        #expect(estimate.paceFactor(along: 100, elapsed: 200) == 1)
+        // 1 km at half Tobler's speed: halfway between usual 1 and today's 2.
+        #expect(abs(estimate.paceFactor(along: 1000, elapsed: 120 + 1000 * flatSecondsPerMetre * 2) - 1.5) < 0.01)
+        // 3 km at Tobler's speed after a usual 1.5: today counts three times as much.
+        #expect(abs(usual.paceFactor(along: 3000, elapsed: 120 + 3000 * flatSecondsPerMetre) - 1.125) < 0.01)
+    }
+
+    @Test func paceHistoryUsesTheMedianOfRecentHikes() {
+        #expect(PaceHistory().usualFactor == 1)
+        #expect(PaceHistory(factors: [0.8, 1.6, 1.2]).usualFactor == 1.2)
+        #expect(PaceHistory(factors: [2.5, 2.5, 1, 1.1, 1.2, 1.3]).usualFactor == 1.2)
+
+        let points = (0...40).map { RoutePoint(latitude: Double($0) * 0.001, longitude: 0, elevation: 100) }
+        var estimate = FinishEstimate(profile: ElevationProfile(route: GPXRoute(name: "Flat", points: points)))
+        estimate.reachedRoute(along: 0, elapsed: 0)
+        let flatSecondsPerMetre = 3.6 / ElevationProfile.toblerSpeed(slope: 0)
+        var history = PaceHistory()
+        // Too short to learn from.
+        history.add(estimate, along: 1500, elapsed: 1500 * flatSecondsPerMetre)
+        #expect(history.factors.isEmpty)
+        history.add(estimate, along: 3000, elapsed: 3000 * flatSecondsPerMetre * 1.25)
+        #expect(history.factors.count == 1)
+        #expect(abs(history.usualFactor - 1.25) < 0.01)
     }
 
     @Test func sunsetMatchesPublishedTimes() throws {

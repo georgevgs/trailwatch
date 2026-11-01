@@ -22,6 +22,10 @@ struct TrailMapLayers {
     /// Every fifth contour, drawn bolder so heights can be read off at a glance.
     private(set) var indexContours = Path()
     let hasContours: Bool
+    /// Heights written along the index contours.
+    private(set) var contourLabels: [(label: ContourLabel, text: String)] = []
+    /// Metres between contour labels along a line.
+    static let contourLabelSpacing = 250.0
     /// The shaded relief and where it goes, in the same flat metres as the lines.
     private(set) var shading: (image: Image, rect: CGRect)?
     private(set) var places: [Place] = []
@@ -49,7 +53,15 @@ struct TrailMapLayers {
             case .path: paths.addLines(points)
             case .contour:
                 let isIndex = map.contourInterval.map { (feature.elevation ?? 0).truncatingRemainder(dividingBy: $0 * 5) == 0 } ?? false
-                if isIndex { indexContours.addLines(points) } else { contours.addLines(points) }
+                if isIndex {
+                    indexContours.addLines(points)
+                    if let elevation = feature.elevation {
+                        contourLabels += ContourLabel.along(points, every: Self.contourLabelSpacing)
+                            .map { ($0, Format.metres(elevation)) }
+                    }
+                } else {
+                    contours.addLines(points)
+                }
             case .peak:
                 let height = feature.elevation.map { " \(Format.metres($0)) m" } ?? ""
                 places.append(Place(kind: .peak, point: points[0], label: feature.name.map { $0 + height }))

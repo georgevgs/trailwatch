@@ -4,67 +4,84 @@ import Foundation
 public enum Overpass {
     public static let endpoint = URL(string: "https://overpass-api.de/api/interpreter")!
 
-    /// Paths, roads, water, woods and hiking landmarks inside `box`, with their shapes.
+    /// Paths, roads, water, woods and hiking landmarks inside `box`, with their shapes. Lines are
+    /// cut at the box's edge to keep the download small; areas stay whole so they can be filled.
+    /// Only tags and coordinates come back, not node lists.
     public static func query(for box: BoundingBox) -> String {
-        let area = "(\(box.south),\(box.west),\(box.north),\(box.east))"
+        let area = "\(box.south),\(box.west),\(box.north),\(box.east)"
         return """
-            [out:json][timeout:60];
+            [out:json][timeout:90][bbox:\(area)];
             (
-              way["highway"]\(area);
-              way["waterway"]\(area);
-              way["natural"="water"]\(area);
-              way["natural"="wood"]\(area);
-              way["landuse"="forest"]\(area);
-              node["natural"~"^(peak|spring)$"]\(area);
-              node["amenity"~"^(drinking_water|shelter)$"]\(area);
-              node["tourism"="viewpoint"]\(area);
-            );
-            out geom qt;
+              way["highway"~"^(\(alternatives(Self.highways.keys)))$"];
+              way["waterway"~"^(\(alternatives(Self.waterways)))$"];
+            )->.lines;
+            (
+              way["natural"~"^(water|wood)$"];
+              way["landuse"="forest"];
+            )->.areas;
+            (
+              node["natural"~"^(peak|spring)$"];
+              node["amenity"~"^(drinking_water|shelter)$"];
+              node["tourism"="viewpoint"];
+            )->.places;
+            .lines out tags geom(\(area)) qt;
+            .areas out tags geom qt;
+            .places out qt;
             """
     }
+
+    private static func alternatives(_ values: some Collection<String>) -> String {
+        values.sorted().joined(separator: "|")
+    }
+
+    private static let highways: [String: TrailMap.Kind] = [
+        "path": .path, "footway": .path, "steps": .path, "bridleway": .path, "cycleway": .path, "pedestrian": .path,
+        "track": .track,
+        "motorway": .majorRoad, "trunk": .majorRoad, "primary": .majorRoad, "secondary": .majorRoad, "tertiary": .majorRoad,
+        "motorway_link": .majorRoad, "trunk_link": .majorRoad, "primary_link": .majorRoad,
+        "secondary_link": .majorRoad, "tertiary_link": .majorRoad,
+        "unclassified": .road, "residential": .road, "living_street": .road, "service": .road, "road": .road,
+    ]
+
+    private static let waterways: Set = ["river", "stream", "brook", "canal", "ditch", "drain"]
 
     /// Reads an Overpass JSON response made with `out geom`. Anything TrailWatch doesn't draw is skipped.
     public static func trailMap(from data: Data, bounds: BoundingBox, downloaded: Date = .now) throws -> TrailMap {
         let response = try JSONDecoder().decode(Response.self, from: data)
-        let features = response.elements.compactMap(feature)
+        let features = response.elements.flatMap(features)
         return TrailMap(bounds: bounds, features: features, downloaded: downloaded)
     }
 
-    private static func feature(_ element: Element) -> TrailMap.Feature? {
+    private static func features(_ element: Element) -> [TrailMap.Feature] {
         let tags = element.tags ?? [:]
         switch element.type {
         case "node":
-            guard let latitude = element.lat, let longitude = element.lon, let kind = placeKind(tags) else { return nil }
-            return TrailMap.Feature(
+            guard let latitude = element.lat, let longitude = element.lon, let kind = placeKind(tags) else { return [] }
+            return [TrailMap.Feature(
                 kind: kind, name: tags["name"], elevation: tags["ele"].flatMap(Double.init),
-                points: [TrailMap.Point(latitude: latitude, longitude: longitude)])
+                points: [TrailMap.Point(latitude: latitude, longitude: longitude)])]
         case "way":
-            let points = (element.geometry ?? []).compactMap { $0 }.map {
-                TrailMap.Point(latitude: $0.lat, longitude: $0.lon)
+            guard let kind = wayKind(tags) else { return [] }
+            if kind == .water || kind == .wood {
+                let points = (element.geometry ?? []).compactMap { $0 }.map { TrailMap.Point(latitude: $0.lat, longitude: $0.lon) }
+                // A lone area way has to close on itself; open ones are pieces of larger shapes.
+                guard points.count >= 3, points.first == points.last else { return [] }
+                return [TrailMap.Feature(kind: kind, name: tags["name"], points: points)]
             }
-            guard points.count >= 2, let kind = wayKind(tags) else { return nil }
-            // A lone area way has to close on itself; open ones are pieces of larger shapes.
-            if kind == .water || kind == .wood, points.first != points.last { return nil }
-            return TrailMap.Feature(kind: kind, name: tags["name"], points: points)
+            // A line cut by the box's edge comes back with nulls where it's outside; each piece inside is drawn.
+            return (element.geometry ?? [])
+                .split { $0 == nil }
+                .map { $0.compactMap { $0.map { TrailMap.Point(latitude: $0.lat, longitude: $0.lon) } } }
+                .filter { $0.count >= 2 }
+                .map { TrailMap.Feature(kind: kind, name: tags["name"], points: $0) }
         default:
-            return nil
+            return []
         }
     }
 
     private static func wayKind(_ tags: [String: String]) -> TrailMap.Kind? {
-        if let highway = tags["highway"] {
-            switch highway {
-            case "path", "footway", "steps", "bridleway", "cycleway", "pedestrian": return .path
-            case "track": return .track
-            case "motorway", "trunk", "primary", "secondary", "tertiary",
-                 "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link": return .majorRoad
-            case "unclassified", "residential", "living_street", "service", "road": return .road
-            default: return nil
-            }
-        }
-        if let waterway = tags["waterway"], ["river", "stream", "brook", "canal", "ditch", "drain"].contains(waterway) {
-            return .stream
-        }
+        if let highway = tags["highway"] { return highways[highway] }
+        if let waterway = tags["waterway"], waterways.contains(waterway) { return .stream }
         if tags["natural"] == "water" { return .water }
         if tags["natural"] == "wood" || tags["landuse"] == "forest" { return .wood }
         return nil

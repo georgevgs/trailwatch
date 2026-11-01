@@ -46,18 +46,48 @@ struct TrailMapView: View {
                 Path(ellipseIn: CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2))
             }
 
+            // Contour heights, with gaps cut in the lines under them as on paper maps.
+            var contourLabels: [(text: GraphicsContext.ResolvedText, at: CGPoint, angle: Double)] = []
+            var gaps = Path()
+            if showsLabels {
+                // About one label per 150 points of line on screen.
+                let stride = max(1, Int((150 / scale / TrailMapLayers.contourLabelSpacing).rounded()))
+                let bounds = CGRect(origin: .zero, size: size).insetBy(dx: -20, dy: -20)
+                for (label, text) in layers.contourLabels where label.index % stride == 0 {
+                    let p = label.point.applying(transform)
+                    guard bounds.contains(p) else { continue }
+                    let resolved = context.resolve(
+                        Text(text).font(.system(size: 9, weight: .medium)).foregroundStyle(Color.mapContourLabel))
+                    let textSize = resolved.measure(in: CGSize(width: 100, height: 20))
+                    let box = CGRect(x: -textSize.width / 2 - 2, y: -textSize.height / 2, width: textSize.width + 4, height: textSize.height)
+                    gaps.addPath(Path(box), transform: CGAffineTransform(translationX: p.x, y: p.y).rotated(by: label.angle))
+                    contourLabels.append((resolved, p, label.angle))
+                }
+            }
+
             if !isSimple {
                 context.fill(layers.woods.applying(transform), with: .color(.mapWood))
                 context.fill(layers.water.applying(transform), with: .color(.mapWater))
                 if let shading = layers.shading {
                     context.draw(shading.image, in: shading.rect.applying(transform))
                 }
-                stroke(layers.contours, .mapContour, 0.6)
-                stroke(layers.indexContours, .mapContour, 1.1)
+                var gapped = context
+                if !gaps.isEmpty { gapped.clip(to: gaps, options: .inverse) }
+                for (path, width) in [(layers.contours, 0.6), (layers.indexContours, 1.1)] {
+                    gapped.stroke(path.applying(transform), with: .color(.mapContour),
+                                  style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                }
+                for label in contourLabels {
+                    var rotated = context
+                    rotated.translateBy(x: label.at.x, y: label.at.y)
+                    rotated.rotate(by: .radians(label.angle))
+                    rotated.draw(label.text, at: .zero)
+                }
                 stroke(layers.streams, .mapStream, 1.5)
                 stroke(layers.majorRoads, .mapMajorRoad, 3)
                 stroke(layers.roads, .mapRoad, 2)
             }
+
             stroke(layers.tracks, .mapTrack, 1.5, dash: [4, 3])
             stroke(layers.paths, .mapPath, 1.2, dash: [3, 2])
 
@@ -179,6 +209,7 @@ private extension Color {
     static let mapTrack = Color(red: 0xA8 / 255, green: 0x9A / 255, blue: 0x74 / 255)
     static let mapPath = Color(red: 0xE2 / 255, green: 0xDA / 255, blue: 0xC8 / 255).opacity(0.75)
     static let mapContour = Color(red: 0xB0 / 255, green: 0x8A / 255, blue: 0x5E / 255).opacity(0.45)
+    static let mapContourLabel = Color(red: 0xC8 / 255, green: 0xA4 / 255, blue: 0x78 / 255).opacity(0.85)
     static let mapWaypoint = Color(red: 0xFF / 255, green: 0xF1 / 255, blue: 0xD6 / 255)
     static let mapYou = Color(red: 0x6E / 255, green: 0x7F / 255, blue: 0xFF / 255)
 }

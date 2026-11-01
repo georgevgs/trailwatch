@@ -6,6 +6,7 @@ struct RouteDetailView: View {
     let route: GPXRoute
     @Environment(WatchTransferService.self) private var watch
     @Environment(OfflineMapService.self) private var maps
+    @AppStorage(OfflineMapService.marginKey) private var margin = OfflineMapService.defaultMargin
 
     var body: some View {
         List {
@@ -41,6 +42,12 @@ struct RouteDetailView: View {
             }
 
             Section {
+                Picker("Area", selection: $margin) {
+                    ForEach(OfflineMapService.margins, id: \.self) { margin in
+                        Text("\(Self.distance(margin)) around the route")
+                    }
+                }
+                .disabled(maps.downloading.contains(route.id))
                 if maps.downloading.contains(route.id) {
                     HStack {
                         ProgressView()
@@ -52,6 +59,11 @@ struct RouteDetailView: View {
                     LabeledContent("Contour lines", value: map.contourInterval.map { "Every \(Format.metres($0)) m" } ?? "None")
                     LabeledContent("Hill shading", value: map.shading == nil ? "None" : "Included")
                     LabeledContent("Downloaded", value: map.downloaded.formatted(date: .abbreviated, time: .omitted))
+                    if (map.margin ?? 600) != margin {
+                        Text("This map covers \(Self.distance(map.margin ?? 600)) around the route. Update it to get the new area.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     Button("Update Map") { Task { await maps.download(route) } }
                 } else {
                     Button(maps.failed.contains(route.id) ? "Try Again" : "Download Offline Map") {
@@ -91,8 +103,12 @@ struct RouteDetailView: View {
         if maps.failed.contains(route.id) {
             "Couldn't download the map data. Check your connection; the OpenStreetMap server is sometimes busy."
         } else {
-            "Paths, tracks, roads, water, landmarks, contour lines and hill shading within \(Format.metres(OfflineMapService.margin)) m of the route, drawn on your Watch when there's no signal. Map data © OpenStreetMap contributors. \(Terrain.attribution)."
+            "Paths, tracks, roads, water, landmarks, contour lines and hill shading, drawn on your Watch when there's no signal. A bigger area takes longer to download. If you leave the app, the download carries on. Map data © OpenStreetMap contributors. \(Terrain.attribution)."
         }
+    }
+
+    private static func distance(_ metres: Double) -> String {
+        metres < 1000 ? "\(Format.metres(metres)) m" : "\((metres / 1000).formatted()) km"
     }
 
     private var sendTitle: String {

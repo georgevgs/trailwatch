@@ -6,7 +6,7 @@ Needs Xcode 27, iOS 27 and watchOS 27. Apple frameworks only.
 
 ## Using it
 
-1. **iPhone:** put the `.gpx` in Files, open TrailWatch, tap **+**. The offline map (OpenStreetMap data, contours and hill shading, 600 m around the route) downloads right after.
+1. **iPhone:** put the `.gpx` in Files, open TrailWatch, tap **+**. The offline map (OpenStreetMap data, labelled contours and hill shading) downloads right after and carries on if you leave the app. Choose how far around the route it reaches (600 m, 1.5 km or 3 km) on the route's screen.
 2. Open the route and tap **Send to Apple Watch**. If the Watch is away, it arrives later.
 3. **Watch:** pick the route to see distance, climb, elevation profile, estimated time and sunset. Optionally reverse it. Tap **Start** or double tap.
 4. **On the hike:** the Crown zooms, drag pans. Tap the progress pill for stats (pace, heart rate zone, time to finish, next waypoint). The Watch taps your wrist at GPX waypoints, when you stray past the off-route distance (30–75 m, set on the routes list), and if you'll finish after sunset.
@@ -28,8 +28,9 @@ Design/        App icon script (needs Pillow)
 
 - **Transfer:** the iPhone sends each route as JSON with `WCSession.transferFile`. The Watch stores it and replies with the IDs it has.
 - **Progress:** `RouteTracker` snaps each fix to the nearest segment. On loops and out-and-backs it picks the match that continues from the last one.
-- **Off route:** `OffRouteMonitor` alerts after 10 s beyond the threshold and clears within 60% of it. It ignores inaccurate fixes and stays quiet until you've reached the route.
-- **Recording:** an `HKWorkoutSession` (hiking, outdoor) keeps the app alive with the wrist down and saves the GPS route and climb. Without Health access, the hike still works but isn't saved.
+- **Off route:** `OffRouteMonitor` alerts after 10 s beyond the threshold and clears within 60% of it. It ignores inaccurate fixes and stays quiet until you've reached the route. The alert's arrow follows the Watch's compass.
+- **Time to finish:** Tobler's hiking function, scaled by your pace. It starts from the median of your last five saved hikes and moves towards today's pace as you walk.
+- **Recording:** an `HKWorkoutSession` (hiking, outdoor) keeps the app alive with the wrist down and saves the GPS route and climb. Distance is Health's own. Without Health access, the hike still works but isn't saved, and distance comes from GPS.
 - **Recovery:** the hike belongs to `HikeManager`, not a screen. If the app quits, watchOS relaunches it and the workout and progress are restored.
 - **Complication:** the Watch app writes a `HikeGlance` to the app group `group.eu.vagdas.trailwatch` and reloads the widget on each whole percent, pause or resume, or every two minutes.
 
@@ -37,8 +38,8 @@ Design/        App icon script (needs Pillow)
 
 The route, position, alerts and recording always work offline. The map underneath is drawn from data downloaded with the route:
 
-- **OpenStreetMap** via one Overpass query per route: paths, roads, water, woods, peaks, springs, shelters. Apps can't use Apple Maps offline areas, watchOS MapKit has no custom tiles, and free tile servers forbid bulk downloads, so the app draws vector data itself.
-- **Contours and hill shading** from [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/). The iPhone traces the contours and renders the shading, then sends only lines and a small PNG.
+- **OpenStreetMap** via one Overpass query per route: paths, roads, water, woods, peaks, springs, shelters. Lines are cut at the map's edge. A busy server gets one more try after 30 s. Apps can't use Apple Maps offline areas, watchOS MapKit has no custom tiles, and free tile servers forbid bulk downloads, so the app draws vector data itself.
+- **Contours and hill shading** from [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/). The iPhone traces the contours and renders the shading, then sends only lines and a small PNG. Contours run with higher ground on their left, so the Watch can write their heights facing uphill.
 
 Routes without map data fall back to Apple Maps.
 
@@ -75,8 +76,5 @@ Both credits are shown on the map in the app.
 
 ## Known limits
 
-- Walked distance comes from GPS and can differ slightly from Health's.
-- The off-route arrow points relative to north, not to the way you're facing.
-- The offline map covers only 600 m around the route. Contours have no labels.
-- Time estimates use Tobler's hiking function for the first kilometre, then your own pace.
-- Overpass can be slow (35 s for the Kaisariani route). Tap **Try Again** if a download fails.
+- Overpass can be slow when busy (about 35 s for the Kaisariani route). Tap **Try Again** if a download fails.
+- Maps downloaded before contour labels existed need **Update Map** for the labels to face uphill.

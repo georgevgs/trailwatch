@@ -8,12 +8,16 @@ struct TrailMapTests {
     @Test func readsOverpassWaysAndPlaces() throws {
         let map = try Overpass.trailMap(from: Data(sample.utf8), bounds: box)
 
-        #expect(map.features.map(\.kind) == [.path, .road, .stream, .wood, .peak, .spring])
+        #expect(map.features.map(\.kind) == [.path, .path, .road, .stream, .wood, .peak, .spring])
         #expect(map.features[0].name == "Kaisariani trail")
+        // Cut where the path leaves the box and comes back.
         #expect(map.features[0].points == [
             TrailMap.Point(latitude: 37.960, longitude: 23.790), TrailMap.Point(latitude: 37.961, longitude: 23.791),
         ])
-        #expect(map.features[4].elevation == 1026)
+        #expect(map.features[1].points == [
+            TrailMap.Point(latitude: 37.962, longitude: 23.792), TrailMap.Point(latitude: 37.963, longitude: 23.793),
+        ])
+        #expect(map.features[5].elevation == 1026)
         #expect(map.bounds == box)
     }
 
@@ -21,7 +25,7 @@ struct TrailMapTests {
         let map = try Overpass.trailMap(from: Data(sample.utf8), bounds: box)
 
         // The bus stop, the construction road, the open wood way and the one-node path are left out.
-        #expect(map.features.count == 6)
+        #expect(map.features.count == 7)
     }
 
     @Test func storesPointsCompactly() throws {
@@ -67,18 +71,34 @@ struct TrailMapTests {
         #expect(pb.x > pa.x && pb.y > pa.y)  // b is east and south of a
     }
 
+    @Test func contourLabelsAreSpacedAlongTheLineAndUpright() {
+        // 1 km heading west, then 500 m north.
+        let line = [CGPoint(x: 0, y: 0), CGPoint(x: -1000, y: 0), CGPoint(x: -1000, y: -500)]
+        let labels = ContourLabel.along(line, every: 400)
+
+        #expect(labels.map(\.point) == [CGPoint(x: -200, y: 0), CGPoint(x: -600, y: 0), CGPoint(x: -1000, y: 0), CGPoint(x: -1000, y: -400)])
+        #expect(labels.map(\.index) == [0, 1, 2, 3])
+        // Westward text would be upside down, so it's turned to read left to right.
+        #expect(abs(labels[0].angle) < 1e-9)
+        #expect(abs(labels[3].angle + .pi / 2) < 1e-9)
+        #expect(ContourLabel.along(line, every: 4000).isEmpty)
+    }
+
     @Test func queryCoversTheBox() {
         let query = Overpass.query(for: box)
 
-        #expect(query.contains(#"way["highway"](37.95,23.78,37.97,23.81);"#))
+        #expect(query.contains("[bbox:37.95,23.78,37.97,23.81]"))
         #expect(query.hasPrefix("[out:json]"))
-        #expect(query.contains("out geom"))
+        #expect(query.contains(".lines out tags geom(37.95,23.78,37.97,23.81) qt;"))
+        #expect(query.contains(#"way["highway"~"^(bridleway|cycleway|footway|"#))
+        #expect(!query.contains("construction"))
     }
 
     private let sample = """
         {"elements": [
           {"type": "way", "id": 1, "tags": {"highway": "path", "name": "Kaisariani trail"},
-           "geometry": [{"lat": 37.960, "lon": 23.790}, null, {"lat": 37.961, "lon": 23.791}]},
+           "geometry": [null, {"lat": 37.960, "lon": 23.790}, {"lat": 37.961, "lon": 23.791}, null, null,
+                        {"lat": 37.962, "lon": 23.792}, {"lat": 37.963, "lon": 23.793}, null]},
           {"type": "way", "id": 2, "tags": {"highway": "residential"},
            "geometry": [{"lat": 37.962, "lon": 23.790}, {"lat": 37.963, "lon": 23.792}]},
           {"type": "way", "id": 3, "tags": {"highway": "construction"},

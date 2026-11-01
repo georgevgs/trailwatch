@@ -5,6 +5,8 @@ import TrailKit
 struct OffRouteView: View {
     let session: HikeSession
     @Environment(\.dismiss) private var dismiss
+    /// Runs only while this screen is open, to save battery.
+    @State private var compassService = HeadingService()
 
     var body: some View {
         ScrollView {
@@ -41,6 +43,8 @@ struct OffRouteView: View {
                     .buttonStyle(.glass)
             }
         }
+        .onAppear { compassService.start() }
+        .onDisappear { compassService.stop() }
     }
 
     private var distance: Double { session.tracker.position?.distanceFromRoute ?? 0 }
@@ -51,20 +55,23 @@ struct OffRouteView: View {
         return RouteCalculator.bearing(from: RoutePoint(latitude: you.latitude, longitude: you.longitude), to: trail)
     }
 
-    /// North-up dial with an arrow towards the trail.
+    /// A dial with an arrow towards the trail. It turns with the Watch, so the arrow points the
+    /// way to walk; without a compass reading it stays north-up.
     private var compass: some View {
-        ZStack {
+        let heading = compassService.heading ?? 0
+        return ZStack {
             Circle()
                 .strokeBorder(Color.offRoute.opacity(0.35), lineWidth: 2)
             Text("N")
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(.secondary)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, 3)
+                .rotationEffect(.degrees(heading))
+                .offset(y: -22)
+                .rotationEffect(.degrees(-heading))
             Image(systemName: "location.north.fill")
                 .font(.system(size: 24))
                 .foregroundStyle(.offRoute)
-                .rotationEffect(.degrees(bearing))
+                .rotationEffect(.degrees(bearing - heading))
         }
         .frame(width: 58, height: 58)
         .accessibilityHidden(true)

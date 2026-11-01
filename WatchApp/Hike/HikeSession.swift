@@ -57,7 +57,7 @@ final class HikeSession {
         let tracker = RouteTracker(route: route)
         self.tracker = tracker
         stops = tracker.stops()
-        finish = FinishEstimate(profile: ElevationProfile(route: route))
+        finish = FinishEstimate(profile: ElevationProfile(route: route), usualFactor: PaceHistory.saved.usualFactor)
         sunset = route.points.first.flatMap { Sun.sunset(on: .now, latitude: $0.latitude, longitude: $0.longitude) }
         monitor = OffRouteMonitor(threshold: progress.offRouteDistance)
         let now = Date.now
@@ -77,8 +77,8 @@ final class HikeSession {
     }
     private var batteryAtEnd: Float?
 
-    /// Metres walked, from GPS.
-    var distanceWalked: Double { record.distanceWalked }
+    /// Metres walked as Apple Health counts them; from GPS when the hike isn't recorded.
+    var distanceWalked: Double { workout.distance ?? record.distanceWalked }
 
     /// Metres climbed, from the watch's GPS and barometric altitude.
     var ascent: Double { record.ascent }
@@ -150,6 +150,7 @@ final class HikeSession {
         showsOffRouteAlert = false
         tracking?.cancel()
         HikeProgress.saved = nil
+        if saving { PaceHistory.saved.add(finish, along: tracker.distanceAlong, elapsed: elapsed) }
         updateComplication()
         // Ending straight after Start waits for the workout to begin, so it can't be left running.
         await starting?.value

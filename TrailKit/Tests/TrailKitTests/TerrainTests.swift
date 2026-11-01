@@ -69,6 +69,31 @@ struct TerrainTests {
         #expect(lines[0].count == 10)
         #expect(lines[0].allSatisfy { abs($0.x - 5.5) < 1e-9 })
     }
+
+    @Test func runsContoursWithHigherGroundOnTheLeft() {
+        // Rising to the east, so walking with high ground on the left heads south (y growing).
+        let slope = ElevationGrid(width: 20, height: 10, values: (0..<20 * 10).map { Float($0 % 20) * 10 })
+        for line in [[CGPoint(x: 5.5, y: 0), CGPoint(x: 5.5, y: 9)], [CGPoint(x: 5.5, y: 9), CGPoint(x: 5.5, y: 0)]] {
+            let oriented = Isolines.uphillOnLeft(line, in: slope, at: 55)
+            #expect(oriented.first!.y < oriented.last!.y)
+        }
+
+        // Round a hill, the top stays on the left of every segment.
+        let size = 41
+        let cone = ElevationGrid(width: size, height: size, values: (0..<size * size).map { index -> Float in
+            let x = Double(index % size - 20), y = Double(index / size - 20)
+            return Float(max(0, 100 - 5 * (x * x + y * y).squareRoot()))
+        })
+        for ring in Isolines.lines(in: cone, at: 50) {
+            for reversed in [false, true] {
+                let line = Isolines.uphillOnLeft(reversed ? ring.reversed() : ring, in: cone, at: 50)
+                for (a, b) in zip(line, line.dropFirst()) where a != b {
+                    // Left of a→b, rows running south: the cross product with the top is negative.
+                    #expect((b.x - a.x) * (20 - a.y) - (b.y - a.y) * (20 - a.x) < 0)
+                }
+            }
+        }
+    }
 }
 
 struct HillshadeTests {
